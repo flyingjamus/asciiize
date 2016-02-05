@@ -1,57 +1,204 @@
 import asciiize from './asciiize';
 import messages from './messages';
+import isEqual from 'lodash/isEqual';
+import reduce from 'lodash/reduce';
+import mutationSummary from 'mutation-summary';
 
-function loadImage(img, src) {
-  return new Promise(function(resolve, reject) {
-    img.onload = ()=> resolve(img);
-    img.onerror = reject;
-    img.src = src;
-    return img;
+let isOn = false;
+let key;
+
+function waitForImage(img) {
+  return new Promise((resolve, reject) => {
+    function loadListener() {
+      removeListeners();
+      resolve();
+    }
+
+    function errorListener() {
+      removeListeners();
+      reject();
+    }
+
+    function removeListeners() {
+      img.removeEventListener('load', loadListener);
+      img.removeEventListener('error', errorListener);
+    }
+
+    img.addEventListener('load', loadListener);
+    img.addEventListener('error', errorListener);
   });
 }
 
-function urlSrcToBlob(image, key) {
-  const src = image.src;
+function loadImage(img, src) {
+  return Promise.resolve()
+    .then(() => {
+      if (src && img.src !== src) {
+        setTimeout(() => img.src = src, 0);
+        return waitForImage(img);
+      } else if (!img.complete) {
+        return waitForImage(img);
+      }
+    })
+    .then(() => img);
+}
+
+const objectURLCache = {};
+
+function urlToObjectUrl(src) {
   chrome.runtime.sendMessage({ message: messages.beforeSend, src });
-  let objectURL;
   return fetch(src, { mode: 'cors', credentials: 'include', headers: { asciiize: key } })
     .then(function(response) {
       return response.blob();
     })
     .then(function(imgBlob) {
-
-      objectURL = URL.createObjectURL(imgBlob);
-      return loadImage(image, objectURL)
-    })
-    .then(function(img) {
-      URL.revokeObjectURL(objectURL);
-      return img;
+      return URL.createObjectURL(imgBlob);
     });
 }
 
+function urlSrcToBlobWithCache(image) {
+  const src = image.src;
+  return Promise.resolve()
+    .then(() => {
+      if (!objectURLCache[src]) {
+        console.log('muss', src);
+        objectURLCache[src] = urlToObjectUrl(src);
+      } else {
+        console.log('hut', src)
+      }
+      return objectURLCache[src];
+    })
+    .then((objectURL) => loadImage(image, objectURL));
+}
+
 const DATA_REGEX = /^blob:|^data:/;
+const FILE_REGEX = /^file:/;
 function noop() {
 }
 
-function processImg(img, key) {
-  Promise.resolve()
+const sources = new WeakMap();
+
+function normalizeImage(img) {
+  return Promise.resolve()
     .then(() => {
       if (DATA_REGEX.test(img.src)) {
         console.log(img.src, 'data');
         return img;
+      } else if (FILE_REGEX.test(img.src)) {
+        throw('We dont really deal with file urls');
       } else {
         console.log(img.src, 'cors');
-        return urlSrcToBlob(img, key);
+        return urlSrcToBlobWithCache(img);
       }
+    });
+}
+
+const options = {
+  minWidth: 10,
+  minHeight: 10
+};
+
+function resetImg(img) {
+  const source = sources.get(img);
+  if (source) {
+    source.options = false;
+    sources.set(img, source);
+    return loadImage(img, source.src);
+  }
+}
+
+function processImg(img) {
+  let source = sources.get(img);
+
+  var newOptions = Object.assign({ width: img.offsetWidth, height: img.offsetHeight }, options);
+  if (source && isEqual(newOptions, source.options) && img.src && img.src[0] === 'data') {
+    return Promise.resolve();
+  }
+
+  return loadImage(img)
+    .then(() => {
+      if (source) {
+        return loadImage(img, source.data)
+      }
+
+      source = {
+        src: img.src,
+        options: newOptions
+      };
+      return normalizeImage(img)
+        .then(() => {
+          source.data = img.src;
+          sources.set(img, source);
+        });
     })
-    .then(asciiize)
-    .catch(noop);
+    .then(() => asciiize(img, options))
+    .catch(e => {
+      console.log(e)
+    });
+}
+
+function sequencePromises(arr, cb) {
+  return reduce(arr, (promise, item, i) => {
+    return promise
+      .then(() => cb(item, i))
+      .catch((e) => {
+        console.log(e);
+        return cb(item, i)
+      });
+  }, Promise.resolve());
+}
+
+function processAll() {
+  return sequencePromises(document.getElementsByTagName('img'), processImg);
+}
+
+function resetAll() {
+  return sequencePromises(document.getElementsByTagName('img'), resetImg);
+}
+
+let observer;
+
+function stopObserver() {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
+}
+
+function observe() {
+  stopObserver()
+  observer = new mutationSummary({
+    callback: (summaries) => {
+      stopObserver()
+      sequencePromises(summaries, summary => {
+        const elements = summary.added.concat(summary.attributeChanged.src)
+        return sequencePromises(elements, processImg);
+      })
+        .then(observe)
+    },
+    queries: [{ element: 'img', elementAttributes: 'src' }]
+  });
+}
+
+function doStart() {
+  isOn = !isOn;
+  stopObserver();
+  if (isOn) {
+    processAll().then(observe);
+  } else {
+    resetAll();
+  }
 }
 
 chrome.runtime.onMessage.addListener(
   function(request, sender, response) {
+    if (request.key) {
+      key = request.key;
+    }
     if (request.message === messages.start) {
-      _.forEach(document.getElementsByTagName('img'), img => processImg(img, request.key));
+      doStart();
+      if (response) {
+        response({ isOn });
+      }
     } else if (request.message === messages.single && selected) {
       processImg(selected, request.key);
     }

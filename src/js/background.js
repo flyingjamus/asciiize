@@ -1,17 +1,31 @@
 import messages from './messages';
 import randomstring from 'randomstring';
-import {findIndex} from 'lodash';
+import findIndex from 'lodash/findIndex';
 
 const key = randomstring.generate();
 
-function messageCurrentTab(message) {
+function messageCurrentTab(message, cb) {
+
   chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, message);
+    var id = tabs[0].id;
+
+    function cbWrapper(response) {
+      if (cb) {
+        cb(response, id);
+      }
+    }
+
+    chrome.tabs.sendMessage(id, message, cbWrapper);
   });
 }
 
+function setBadge(response = {}, tabId) {
+  const path = response.isOn ? 'assets/icon_active.png' : 'assets/icon.png';
+  chrome.browserAction.setIcon({tabId, path})
+}
+
 chrome.browserAction.onClicked.addListener(() => {
-  messageCurrentTab({ message: messages.start, key: key });
+  messageCurrentTab({ message: messages.start, key: key }, setBadge);
 });
 
 chrome.contextMenus.create({
@@ -55,7 +69,6 @@ function attachResponseListener(src) {
 
 chrome.runtime.onMessage.addListener(request => {
   if (request.message === messages.beforeSend) {
-    console.log(request.src)
     attachRequestListener(request.src);
     attachResponseListener(request.src);
   }

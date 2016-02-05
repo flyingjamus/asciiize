@@ -1,10 +1,12 @@
-import lodash from 'lodash';
+import sum from 'lodash/sum';
+import memoize from 'lodash/memoize';
+import clamp from 'lodash/clamp';
 
 //const CHARS = ['@','#','$','=','*','!',';',':','~','-',',','.'];
 //const CHARS = '.,:;i1tfLCG08@'.split('').reverse().concat(['&nbsp;']);
 const CHARS = ['&nbsp;', '&nbsp;'].concat('.,:;clodxkO0KXN@'.split(''));
 const NUM_CHARS = CHARS.length - 1;
-const getChar = _.memoize(function getChar(val) {
+const getChar = memoize(function getChar(val) {
   return CHARS[parseInt(val * NUM_CHARS, 10)];
 });
 
@@ -12,15 +14,15 @@ let key = '';
 
 function contrastor(contrast) {
   const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-  return _.memoize(function(v) {
-    return _.clamp(contrastFactor * (v - 128) + 128, 0, 255);
+  return memoize(function(v) {
+    return clamp(contrastFactor * (v - 128) + 128, 0, 255);
   });
 }
 
 function buildChar(options, r, g, b, a) {
   const {color, fontWidth, bottomCutoff = 0} = options;
   const maxValue = (Math.max(r, g, b) - bottomCutoff) / (255 - bottomCutoff);
-  const intensity = _.clamp(maxValue, 0, 1);
+  const intensity = clamp(maxValue, 0, 1);
   const span = document.createElement('span');
 
   if (color === true) {
@@ -72,6 +74,7 @@ function domToImg(domString, image) {
 
     image.addEventListener('load', function() {
       URL.revokeObjectURL(url);
+      image.asciiized = true;
       resolve(image);
     });
 
@@ -89,10 +92,12 @@ const DEFAULT_OPTIONS = {
   background: 'black',
   fontFamily: 'monospace',
   fontSize: [3, 30],
-  fontCoefficient: 50 * 50,
+  fontCoefficient: 60,
   //color: 'white',
   color: true,
   contrast: 70,
+  minWidth: 10,
+  minHeight: 10
 };
 
 function createContainer(options) {
@@ -106,18 +111,18 @@ function createContainer(options) {
 }
 
 function analyzeImage(imageData) {
-  const skip = 10;
-  const length = imageData.length;
-  const sample = [];
-  for (let i = 0; i < length; i += skip * 4) {
-    sample.push([imageData[i], imageData[i + 1], imageData[i + 2]])
-  }
-  const sortedSample = sample.map(_.sum).sort();
-  const bottomCutoff = sortedSample[parseInt(sortedSample.length / 10)] / 3;
-  //const topCutoff = 255 - sortedSample[parseInt(sortedSample.length - sortedSample.length / 100)] / 3;
+  //const skip = 10;
+  //const length = imageData.length;
+  //const sample = [];
+  //for (let i = 0; i < length; i += skip * 4) {
+  //  sample.push([imageData[i], imageData[i + 1], imageData[i + 2]])
+  //}
+  //const sortedSample = sample.map(sum).sort();
+  //const bottomCutoff = sortedSample[parseInt(sortedSample.length / 10)] / 3;
+  ////const topCutoff = 255 - sortedSample[parseInt(sortedSample.length - sortedSample.length / 100)] / 3;
 
   return {
-    bottomCutoff: bottomCutoff
+    bottomCutoff: 30
     //topCutoff: topCutoff
   }
 }
@@ -133,7 +138,7 @@ function asciiize(image, inputOptions = {}) {
   }
   if (Array.isArray(options.fontSize)) {
     let [minFont, maxFont] = options.fontSize;
-    options.fontSize = parseInt(_.clamp(Math.sqrt(width * height / options.fontCoefficient), minFont, maxFont));
+    options.fontSize = parseInt(clamp(width / options.fontCoefficient, minFont, maxFont));
   }
   const container = createContainer(options);
 
@@ -159,7 +164,6 @@ function asciiize(image, inputOptions = {}) {
     }
     container.appendChild(rowDiv);
   }
-  //document.body.appendChild(container);
   return domToImg(container.outerHTML, image)
 }
 
