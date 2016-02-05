@@ -1,5 +1,6 @@
 import messages from './messages';
 import randomstring from 'randomstring';
+import {findIndex} from 'lodash';
 
 const key = randomstring.generate();
 
@@ -15,36 +16,48 @@ chrome.browserAction.onClicked.addListener(() => {
 
 chrome.contextMenus.create({
   title: 'Asciiize',
-  contexts:['image'],
-  onclick: function() {
-    messageCurrentTab({ message: messages.single, key: key });
-  }
+  contexts: ['image'],
+  onclick: messageCurrentTab.bind(null, { message: messages.single, key: key })
 });
+
 const requestsToCapture = {};
 
-function markRequestIfNeeded(details) {
-  if (details.url.match(key)) {
-    requestsToCapture[details.requestId] = true;
-    let url = details.url.replace('asciiize=' + key, '');
-    if (url.slice(-1) === '?') {
-      url = url.slice(0, -1);
+function attachRequestListener(src) {
+  let listener = function(details) {
+    const headerIndex = findIndex(details, { name: 'asciiize' });
+    if (headerIndex > -1) {
+      requestsToCapture[details.requestId] = true;
+      chrome.webRequest.onBeforeSendHeaders.removeListener(listener, { urls: [src] });
+      console.log(details.requestHeaders[headerIndex]);
+      details.requestHeaders.splice(headerIndex, 1);
+      return { requestHeaders: details.requestHeaders };
     }
-    return { redirectUrl: url };
-  }
+  };
+  chrome.webRequest.onBeforeSendHeaders.addListener(listener, { urls: [src] }, ['blocking', 'requestHeaders']);
 }
-const rule = {
+
+const CORS_RULE = {
   name: 'Access-Control-Allow-Origin',
   value: '*'
 };
 
-function addHeadersIfMarked(details) {
-  if (requestsToCapture[details.requestId]) {
-    delete requestsToCapture[details.requestId];
-    details.responseHeaders.push(rule);
-    return { responseHeaders: details.responseHeaders };
-  }
+function attachResponseListener(src) {
+  let listener = function(details) {
+    if (requestsToCapture[details.requestId]) {
+      chrome.webRequest.onHeadersReceived.removeListener(listener, { urls: [src] });
+      delete requestsToCapture[details.requestId];
+      details.responseHeaders.push(CORS_RULE);
+      return { responseHeaders: details.responseHeaders };
+    }
+  };
+  chrome.webRequest.onHeadersReceived.addListener(listener, { urls: [src] }, ['blocking', 'responseHeaders']);
 }
 
-chrome.webRequest.onBeforeRequest.addListener(markRequestIfNeeded, { urls: ["<all_urls>"] }, ['blocking', 'requestBody']);
+chrome.runtime.onMessage.addListener(request => {
+  if (request.message === messages.beforeSend) {
+    console.log(request.src)
+    attachRequestListener(request.src);
+    attachResponseListener(request.src);
+  }
+});
 
-chrome.webRequest.onHeadersReceived.addListener(addHeadersIfMarked, { urls: ['<all_urls>'] }, ['blocking', 'responseHeaders']);

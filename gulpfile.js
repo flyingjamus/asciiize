@@ -134,4 +134,4 @@ gulp.task('dev', ['static', 'build-dev', 'reload'], function () {
   gulp.watch(['src/js/*.js', 'src/views/*.html'], ['watch-webpack']);
 });
 
-gulp.task('default', ['dev'])
+gulp.task('default', ['dev']);

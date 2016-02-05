@@ -1,4 +1,5 @@
 import lodash from 'lodash';
+
 //const CHARS = ['@','#','$','=','*','!',';',':','~','-',',','.'];
 //const CHARS = '.,:;i1tfLCG08@'.split('').reverse().concat(['&nbsp;']);
 const CHARS = ['&nbsp;', '&nbsp;'].concat('.,:;clodxkO0KXN@'.split(''));
@@ -65,16 +66,12 @@ function domToImg(domString, image) {
               </div>
               </foreignObject>
               </svg>`;
-    const DOMURL = window.URL || window.webkitURL || window;
-    if (!DOMURL) {
-      reject();
-    }
 
     const svg = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
-    const url = DOMURL.createObjectURL(svg);
+    const url = URL.createObjectURL(svg);
 
     image.addEventListener('load', function() {
-      DOMURL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
       resolve(image);
     });
 
@@ -82,22 +79,10 @@ function domToImg(domString, image) {
   });
 }
 
-function getImageData(image, {width, height, newWidth, newHeight, key}) {
-  return new Promise(function(resolve) {
-    const hiddenImage = document.createElement('img');
-    hiddenImage.style.width = width;
-    hiddenImage.style.height = height;
-    hiddenImage.crossOrigin = 'anonymous';
-    hiddenImage.addEventListener('load', function() {
-      const hiddenCanvas = document.createElement('canvas');
-      hiddenCanvas.getContext('2d').drawImage(hiddenImage, 0, 0, width, height, 0, 0, newWidth, newHeight);
-      const imageData = hiddenCanvas.getContext('2d').getImageData(0, 0, newWidth, newHeight);
-      resolve(imageData);
-    });
-    const src = image.src;
-    const keyStr = 'asciiize=' + key;
-    hiddenImage.src = (src.indexOf('&') > -1) ? src + '&' + keyStr : src + '?' + keyStr;
-  });
+function getImageData(image, {width, height, newWidth, newHeight}) {
+  const hiddenCanvas = document.createElement('canvas');
+  hiddenCanvas.getContext('2d').drawImage(image, 0, 0, width, height, 0, 0, newWidth, newHeight);
+  return hiddenCanvas.getContext('2d').getImageData(0, 0, newWidth, newHeight);
 }
 
 const DEFAULT_OPTIONS = {
@@ -156,28 +141,26 @@ function asciiize(image, inputOptions = {}) {
   const newWidth = Math.ceil(width / fontWidth);
   const newHeight = Math.ceil(height / fontHeight);
   Object.assign(options, { width, height, newWidth, newHeight });
-  return getImageData(image, options)
-    .then(function(imageData) {
-      const data = imageData.data;
-      const contrast = contrastor(options.contrast);
-      const {bottomCutoff, topCutoff} = analyzeImage(data);
-      options.bottomCutoff = bottomCutoff;
-      options.topCutoff = topCutoff;
-      options.fontWidth = fontWidth;
+  let imageData = getImageData(image, options);
+  const data = imageData.data;
+  const contrast = contrastor(options.contrast);
+  const {bottomCutoff, topCutoff} = analyzeImage(data);
+  options.bottomCutoff = bottomCutoff;
+  options.topCutoff = topCutoff;
+  options.fontWidth = fontWidth;
 
-      for (let i = 0; i < newHeight; i++) {
-        const rowPos = i * newWidth * 4;
-        const rowDiv = document.createElement('div');
-        for (let j = 0; j < newWidth; j++) {
-          const pos = rowPos + j * 4;
-          const pixel = data.slice(pos, pos + 4).map(contrast);
-          rowDiv.appendChild(buildChar(options, ...pixel));
-        }
-        container.appendChild(rowDiv);
-      }
-      //document.body.appendChild(container);
-      return domToImg(container.outerHTML, image)
-    });
+  for (let i = 0; i < newHeight; i++) {
+    const rowPos = i * newWidth * 4;
+    const rowDiv = document.createElement('div');
+    for (let j = 0; j < newWidth; j++) {
+      const pos = rowPos + j * 4;
+      const pixel = data.slice(pos, pos + 4).map(contrast);
+      rowDiv.appendChild(buildChar(options, ...pixel));
+    }
+    container.appendChild(rowDiv);
+  }
+  //document.body.appendChild(container);
+  return domToImg(container.outerHTML, image)
 }
 
 export default asciiize;

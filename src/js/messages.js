@@ -1,11 +1,5 @@
-const namespace = 'asciiize.';
-const messages = {
+export default {
   start: 'start',
-  single: 'single'
+  single: 'single',
+  beforeSend: 'beforesend'
 };
-const messagesWithNamespace = Object.keys(messages).reduce(function(result, key) {
-  result[key] = namespace + messages[key];
-  return result;
-}, {});
-
-export default messagesWithNamespace;

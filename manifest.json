@@ -1,7 +1,7 @@
 {
   "name": "Asciiize",
   "description": "Turn any image to ASCII art. Kindoff",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "icons": {
     "16": "assets/icon_16x16.png",
     "32": "assets/icon_32x32.png",
