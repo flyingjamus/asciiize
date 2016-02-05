@@ -1,6 +1,6 @@
 {
-  "name": "chrome-extension-boilerplate",
-  "description": "A boilerplate to kickstart Chrome extension development.",
+  "name": "Asciiize",
+  "description": "Turn any image to ASCII art. Kindoff",
   "version": "0.0.1",
   "icons": {
     "16": "assets/icon_16x16.png",
@@ -9,19 +9,17 @@
     "128": "assets/icon_128x128.png"
   },
   "permissions": [
-    "activeTab",
-    "tabs",
-    "storage",
-    "cookies",
-    "*://*.example.com/"
+    "webRequest",
+    "webRequestBlocking",
+    "contextMenus",
+    "<all_urls>"
   ],
   "background": {
     "scripts": [
       "common.js",
       "reload.js",
       "background.js"
-    ],
-    "persistent": false
+    ]
   },
   "browser_action": {
     "default_title": "Simple example.",
@@ -33,16 +31,13 @@
   "content_scripts": [
     {
       "matches": [
-        "http://*.example.com/*",
-        "https://*.example.com/*"
-      ],
-      "css": [
-        "css/extension.css"
+        "<all_urls>"
       ],
       "js": [
         "common.js",
         "client.js"
-      ]
+      ],
+      "all_frames": true
     }
   ],
   "manifest_version": 2,

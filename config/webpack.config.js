@@ -8,10 +8,7 @@ module.exports = {
     background: './background.js',
     client: './client.js',
     reload: './reload.js',
-    common: [
-      'lodash',
-      'jquery'
-    ]
+    common: []
   },
 
   output: {
@@ -56,11 +53,9 @@ module.exports = {
   },
 
   plugins: [
-    new webpack.ProvidePlugin({
-      _: 'lodash',
-      $: 'jquery',
-      jQuery: 'jquery'
-    }),
-   new webpack.optimize.CommonsChunkPlugin('common', 'common.js')
+    //new webpack.ProvidePlugin({
+    //  _: 'lodash'
+    //}),
+    new webpack.optimize.CommonsChunkPlugin('common', 'common.js')
   ]
 };

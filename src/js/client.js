@@ -1,18 +1,17 @@
-/**
- * @file Chrome Extension Boilerplate
- * @name Example
- *
- * Extension client script code.
- *
- * @author Alexandru Badiu <andu@ctrlz.ro>
- */
+import asciiize from './asciiize';
+import messages from './messages';
 
- 'use strict';
+chrome.runtime.onMessage.addListener(
+  function(request, sender, response) {
+    if (request.message === messages.start) {
+      _.forEach(document.getElementsByTagName('img'), v => asciiize(v, { key: request.key }));
+    } else if (request.message === messages.single && selected) {
+      asciiize(selected, { key: request.key });
+    }
+  });
 
-class ExtensionClient {
-  constructor() {
-    console.log('Client script loaded.');
-  }
-}
+let selected;
 
-new ExtensionClient();
+window.addEventListener('contextmenu', function(e) {
+  selected = e.target;
+});
