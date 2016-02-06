@@ -14,7 +14,7 @@ function waitForImage(img) {
       resolve();
     }
 
-    function errorListener() {
+    function errorListener(e) {
       removeListeners();
       reject();
     }
@@ -29,11 +29,14 @@ function waitForImage(img) {
   });
 }
 
-function loadImage(img, src) {
+function loadImage(img, src, srcset) {
   return Promise.resolve()
     .then(() => {
-      if (src && img.src !== src) {
-        setTimeout(() => img.src = src, 0);
+      if (src && img.src !== src || srcset && img.srcset !== srcset) {
+        setTimeout(() => {
+          img.srcset = srcset || '';
+          img.src = src;
+        }, 0);
         return waitForImage(img);
       } else if (!img.complete) {
         return waitForImage(img);
@@ -60,10 +63,7 @@ function urlSrcToBlobWithCache(image) {
   return Promise.resolve()
     .then(() => {
       if (!objectURLCache[src]) {
-        console.log('muss', src);
         objectURLCache[src] = urlToObjectUrl(src);
-      } else {
-        console.log('hut', src)
       }
       return objectURLCache[src];
     })
@@ -81,12 +81,12 @@ function normalizeImage(img) {
   return Promise.resolve()
     .then(() => {
       if (DATA_REGEX.test(img.src)) {
-        console.log(img.src, 'data');
+        //console.log(img.src, 'data');
         return img;
       } else if (FILE_REGEX.test(img.src)) {
         throw('We dont really deal with file urls');
       } else {
-        console.log(img.src, 'cors');
+        //console.log(img.src, 'cors');
         return urlSrcToBlobWithCache(img);
       }
     });
@@ -102,7 +102,7 @@ function resetImg(img) {
   if (source) {
     source.options = false;
     sources.set(img, source);
-    return loadImage(img, source.src);
+    return loadImage(img, source.src, source.srcset);
   }
 }
 
@@ -122,6 +122,7 @@ function processImg(img) {
 
       source = {
         src: img.src,
+        srcset: img.srcset,
         options: newOptions
       };
       return normalizeImage(img)
@@ -141,7 +142,6 @@ function sequencePromises(arr, cb) {
     return promise
       .then(() => cb(item, i))
       .catch((e) => {
-        console.log(e);
         return cb(item, i)
       });
   }, Promise.resolve());
