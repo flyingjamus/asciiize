@@ -5,10 +5,11 @@ import clamp from 'lodash/clamp';
 //const CHARS = ['@','#','$','=','*','!',';',':','~','-',',','.'];
 //const CHARS = '.,:;i1tfLCG08@'.split('').reverse().concat(['&nbsp;']);
 const CHARS = ['&nbsp;', '&nbsp;'].concat('.,:;clodxkO0KXN@'.split(''));
+const FIRST_CHAR = CHARS[0];
 const NUM_CHARS = CHARS.length - 1;
-const getChar = memoize(function getChar(val) {
-  return CHARS[parseInt(val * NUM_CHARS, 10)];
-});
+//const getChar = memoize(function getChar(val) {
+//  return CHARS[parseInt(val * NUM_CHARS, 10)];
+//});
 
 let key = '';
 
@@ -22,7 +23,8 @@ function contrastor(contrast) {
 function buildChar(options, r, g, b, a) {
   const {color, fontWidth, bottomCutoff = 0} = options;
   const maxValue = (Math.max(r, g, b) - bottomCutoff) / (255 - bottomCutoff);
-  const intensity = clamp(maxValue, 0, 1);
+  //const intensity = clamp(maxValue, 0, 1);
+  //const intensity = clamp(maxValue, 0, 1);
   const span = document.createElement('span');
 
   if (color === true) {
@@ -32,8 +34,11 @@ function buildChar(options, r, g, b, a) {
     span.style.color = 'white';
   }
 
-  let char = getChar(intensity);
-  if (char === CHARS[0]) {
+  let char = CHARS[parseInt(maxValue * NUM_CHARS)];
+  if (char === undefined) {
+    char = maxValue > 1 ? CHARS[NUM_CHARS] : FIRST_CHAR;
+  }
+  if (char === FIRST_CHAR) {
     span.style.width = fontWidth + 'px';
     span.style.display = 'inline-block'
   } else {
@@ -59,8 +64,10 @@ function measureFont(container) {
 
 function domToImg(domString, image) {
   return new Promise(function(resolve, reject) {
-    let width = image.offsetWidth;
-    let height = image.offsetHeight;
+    //let width = image.offsetWidth;
+    let width = image.naturalWidth;
+    //let height = image.offsetHeight;
+    let height = image.naturalHeight;
     const data = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
               <foreignObject width="100%" height="100%">
               <div xmlns="http://www.w3.org/1999/xhtml">
@@ -91,7 +98,7 @@ function getImageData(image, {width, height, newWidth, newHeight}) {
 const DEFAULT_OPTIONS = {
   background: 'black',
   fontFamily: 'monospace',
-  fontSize: [3, 30],
+  fontSize: [3, 15],
   fontCoefficient: 60,
   //color: 'white',
   color: true,
@@ -130,15 +137,19 @@ function analyzeImage(imageData) {
 function asciiize(image, inputOptions = {}) {
   let options = Object.assign({}, DEFAULT_OPTIONS, inputOptions);
 
-  const width = image.offsetWidth;
-  const height = image.offsetHeight;
+  //const width = image.offsetWidth;
+  const width = image.naturalWidth;
+  //const height = image.offsetHeight;
+  const height = image.naturalHeight;
 
   if (!width || !height) {
     return;
   }
   if (Array.isArray(options.fontSize)) {
     let [minFont, maxFont] = options.fontSize;
+    console.log(width)
     options.fontSize = parseInt(clamp(width / options.fontCoefficient, minFont, maxFont));
+    console.log(options.fontSize)
   }
   const container = createContainer(options);
 
