@@ -83,12 +83,7 @@ function getImageDataInner(img, options) {
 function getImageData(img, options) {
   let source = sources.get(img);
 
-  if (source && isEqual(options, source.options) && img.src && img.src[0] === 'data') {
-    return Promise.reject();
-  }
-
-  if (source) {
-    console.log('hit')
+  if (source && source.src === img.src) {
     return Promise.resolve(source.data);
   }
 
@@ -106,7 +101,6 @@ function getImageData(img, options) {
 }
 
 function returnBlobToSources(img, data) {
-  console.log(img, data.blob.byteLength)
   let source = sources.get(img);
   if (source) {
     source.data = new Uint8ClampedArray(data.blob);
@@ -116,12 +110,11 @@ function returnBlobToSources(img, data) {
 }
 
 function resetImg(img) {
-  console.log(img)
   const source = sources.get(img);
   if (source) {
     source.options = false;
     sources.set(img, source);
-    return loadImage(img, source.src, source.srcset).then(img => setAsciiized(img, false))
+    return loadImage(img, source.src, source.srcset);
   }
 }
 
@@ -145,8 +138,9 @@ const DEFAULT_OPTIONS = {
   fontFamily: 'monospace',
   fontSize: [5, 15],
   fontCoefficient: 60,
-  //color: 'white',
-  color: true,
+  color: 'white',
+  //color: true,
+  //color: 'lightgreen',
   contrast: 70,
   minWidth: 10,
   minHeight: 10
@@ -208,16 +202,12 @@ function createOptions(img) {
   return options;
 }
 
-function setAsciiized(img, value) {
-  img.isAsciiized = !!value;
-  return img;
-}
-
 function isAsciiized(img) {
-  return !!img.isAsciiized;
+  const source = sources.get(img);
+  return source && img.src === source.objectUrl;
 }
 
-const workerQueue = WorkerQueue.create({ numWorkers: 4, workerUrl: chrome.extension.getURL('worker.js') });
+const workerQueue = WorkerQueue.create({ numWorkers: 8, workerUrl: chrome.extension.getURL('worker.js') });
 
 function asciiizeInWorker(blob, options) {
   return workerQueue.enqueue({ message: messages.workerStart, blob: blob.buffer, options }, [blob.buffer])
@@ -228,8 +218,13 @@ function validateProcessingNeeded(img) {
     console.log('again')
     return Promise.reject();
   }
-  setAsciiized(img, true);
   return Promise.resolve(img);
+}
+
+function setImageObjectUrl(img, objectUrl) {
+  const source = sources.get(img);
+  source.objectUrl = objectUrl;
+  return objectUrl;
 }
 
 function processImg(img) {
@@ -244,6 +239,7 @@ function processImg(img) {
     .then(data => data.result)
     .then(domString => processDomString(domString, options))
     .then(blob => URL.createObjectURL(blob))
+    .then(objectUrl => setImageObjectUrl(img, objectUrl))
     .then(objectUrl => loadImage(img, objectUrl))
     .catch(e => e ? console.log(e) : null);
 }
