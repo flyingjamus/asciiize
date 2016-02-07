@@ -13,7 +13,6 @@
   ],
   "background": {
     "scripts": [
-      "common.js",
       "reload.js",
       "background.js"
     ]
@@ -30,7 +29,6 @@
         "<all_urls>"
       ],
       "js": [
-        "common.js",
         "client.js"
       ],
       "all_frames": true
@@ -39,6 +37,7 @@
   "manifest_version": 2,
   "web_accessible_resources": [
     "assets/icon.png",
-    "assets/icon_active.png"
+    "assets/icon_active.png",
+    "worker.js"
   ]
 }

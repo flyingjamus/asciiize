@@ -131,7 +131,7 @@ gulp.task('dev', ['static', 'build-dev', 'reload'], function () {
   gulp.watch(['src/css/*.css'], ['watch-static']);
   gulp.watch(['src/assets/*.png'], ['watch-static']);
 
-  gulp.watch(['src/js/*.js', 'src/views/*.html'], ['watch-webpack']);
+  gulp.watch(['src/js/**/*.js', 'src/views/*.html'], ['watch-webpack']);
 });
 
 gulp.task('default', ['dev']);

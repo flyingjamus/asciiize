@@ -1,4 +1,4 @@
-import messages from './messages';
+import messages from './common/messages';
 import randomstring from 'randomstring';
 import findIndex from 'lodash/findIndex';
 

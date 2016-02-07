@@ -1,7 +1,7 @@
 export function waitForImage(img) {
   return new Promise((resolve, reject) => {
     if (img.complete) {
-      return resolve(img);
+      return img.clientHeight ? resolve(img) : reject();
     }
 
     function loadListener() {

@@ -1,7 +1,6 @@
 import sum from 'lodash/sum';
 import memoize from 'lodash/memoize';
 import clamp from 'lodash/clamp';
-import {waitForImage} from './image-utils';
 
 //const CHARS = ['@','#','$','=','*','!',';',':','~','-',',','.'];
 //const CHARS = '.,:;i1tfLCG08@'.split('').reverse().concat(['&nbsp;']);

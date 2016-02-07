@@ -1,12 +1,13 @@
-import asciiize, {buildChar} from './asciiize';
-import messages from './messages';
+import asciiize, {buildChar} from './common/asciiize';
+import messages from './common/messages';
 import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import clamp from 'lodash/clamp';
 import once from 'lodash/once';
 import memoize from 'lodash/memoize';
 import mutationSummary from 'mutation-summary';
-import {waitForImage, loadImage} from './image-utils';
+import {waitForImage, loadImage} from './common/image-utils';
+import WorkerQueue from './client/worker-queue';
 
 let isOn = false;
 let key;
@@ -43,13 +44,10 @@ function processDomString(domString, options) {
 
 function imageToCleanObjectUrl(image) {
   const src = image.src;
-  return Promise.resolve()
-    .then(() => {
-      if (!objectURLCache[src]) {
-        objectURLCache[src] = urlToObjectUrl(src);
-      }
-      return objectURLCache[src];
-    });
+  if (!objectURLCache[src]) {
+    objectURLCache[src] = urlToObjectUrl(src);
+  }
+  return objectURLCache[src];
   //.then((objectURL) => loadImage(image, objectURL));
 }
 
@@ -90,6 +88,7 @@ function getImageData(img, options) {
   }
 
   if (source) {
+    console.log('hit')
     return Promise.resolve(source.data);
   }
 
@@ -102,16 +101,27 @@ function getImageData(img, options) {
     .then((blob) => {
       source.data = blob;
       sources.set(img, source);
-      return blob
+      return source.data;
     });
 }
 
+function returnBlobToSources(img, data) {
+  console.log(img, data.blob.byteLength)
+  let source = sources.get(img);
+  if (source) {
+    source.data = new Uint8ClampedArray(data.blob);
+  }
+  sources.set(img, source);
+  return data;
+}
+
 function resetImg(img) {
+  console.log(img)
   const source = sources.get(img);
   if (source) {
     source.options = false;
     sources.set(img, source);
-    return loadImage(img, source.src, source.srcset);
+    return loadImage(img, source.src, source.srcset).then(img => setAsciiized(img, false))
   }
 }
 
@@ -176,9 +186,11 @@ function getContainerString(content, options) {
 }
 
 function createOptions(img) {
+  var naturalWidth = img.naturalWidth;
+  var naturalHeight = img.naturalHeight;
   const options = Object.assign({}, DEFAULT_OPTIONS, {
-    naturalWidth: img.naturalWidth,
-    naturalHeight: img.naturalHeight
+    naturalWidth: naturalWidth,
+    naturalHeight: naturalHeight
     //offsetWidth: img.offsetWidth,
     //offsetHeight: img.offsetHeight
   });
@@ -196,13 +208,40 @@ function createOptions(img) {
   return options;
 }
 
+function setAsciiized(img, value) {
+  img.isAsciiized = !!value;
+  return img;
+}
+
+function isAsciiized(img) {
+  return !!img.isAsciiized;
+}
+
+const workerQueue = WorkerQueue.create({ numWorkers: 4, workerUrl: chrome.extension.getURL('worker.js') });
+
+function asciiizeInWorker(blob, options) {
+  return workerQueue.enqueue({ message: messages.workerStart, blob: blob.buffer, options }, [blob.buffer])
+}
+
+function validateProcessingNeeded(img) {
+  if (isAsciiized(img)) {
+    console.log('again')
+    return Promise.reject();
+  }
+  setAsciiized(img, true);
+  return Promise.resolve(img);
+}
+
 function processImg(img) {
   let options;
-  return loadImage(img)
+  return validateProcessingNeeded(img)
+    .then(loadImage)
     .then(createOptions)
     .then(_options => options = _options)
     .then(options => getImageData(img, options))
-    .then(blob => asciiize(blob, options))
+    .then(blob => asciiizeInWorker(blob, options))
+    .then(data => returnBlobToSources(img, data))
+    .then(data => data.result)
     .then(domString => processDomString(domString, options))
     .then(blob => URL.createObjectURL(blob))
     .then(objectUrl => loadImage(img, objectUrl))
@@ -222,8 +261,8 @@ function sequencePromises(arr, cb) {
 }
 
 function processAll() {
-  return sequencePromises(document.getElementsByTagName('img'), processImg);
-  //return Promise.resolve(map(document.getElementsByTagName('img'), processImg));
+  //return sequencePromises(document.getElementsByTagName('img'), processImg);
+  return Promise.resolve(map(document.getElementsByTagName('img'), processImg));
 }
 
 function resetAll() {
@@ -246,7 +285,7 @@ function observe() {
       stopObserver()
       sequencePromises(summaries, summary => {
         const elements = summary.added.concat(summary.attributeChanged.src)
-        return sequencePromises(elements, processImg);
+        return map(elements, processImg);
       }).then(observe)
     },
     queries: [{ element: 'img', elementAttributes: 'src' }]

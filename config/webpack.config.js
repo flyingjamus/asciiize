@@ -7,8 +7,8 @@ module.exports = {
   entry: {
     background: './background.js',
     client: './client.js',
+    worker: './worker.js',
     reload: './reload.js',
-    common: []
   },
 
   output: {
@@ -53,6 +53,6 @@ module.exports = {
   },
 
   plugins: [
-    new webpack.optimize.CommonsChunkPlugin('common', 'common.js')
+    //new webpack.optimize.CommonsChunkPlugin('common', 'common.js')
   ]
 };

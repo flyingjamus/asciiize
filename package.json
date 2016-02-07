@@ -17,6 +17,7 @@
   "homepage": "https://github.com/voidberg/chrome-extension-boilerplate",
   "dependencies": {
     "lodash": "^4.2.1",
+    "minimal-queue": "0.0.1",
     "mutation-summary": "0.0.0",
     "randomstring": "^1.1.3"
   },
