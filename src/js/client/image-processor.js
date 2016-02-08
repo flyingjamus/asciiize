@@ -173,15 +173,9 @@ function setImageObjectUrl(img, blob) {
   return objectUrl;
 }
 
-function onAnimationFrame() {
-  return new Promise(resolve => requestAnimationFrame(resolve));
-  //return new Promise(resolve => setTimeout(resolve, 0));
-}
-
 function processImg(img) {
   let options;
-  return onAnimationFrame()
-    .then(() => validateProcessingNeeded(img))
+  return validateProcessingNeeded(img)
     .then(loadImage)
     .then(createOptions)
     .then(_options => options = _options)

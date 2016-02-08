@@ -22,7 +22,7 @@ function urlToObjectUrl(src) {
       const objectURL = URL.createObjectURL(imgBlob, { autoRevoke: true });
       allObjectUrls.push(objectURL);
       return objectURL;
-    });
+    })
 }
 
 function imageToCleanObjectUrl(image) {

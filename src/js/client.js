@@ -20,7 +20,7 @@ function sequencePromises(arr, cb) {
 
 function processAll() {
   //return sequencePromises(document.getElementsByTagName('img'), processImg);
-  return Promise.resolve(map(document.getElementsByTagName('img'), processImg));
+  map(document.getElementsByTagName('img'), q.enqueue);
 }
 
 function resetAll() {
@@ -39,9 +39,9 @@ function observe() {
   stopObserver();
   observer = new mutationSummary({
     callback: (summaries) => {
-      sequencePromises(summaries, summary => {
+      summaries.forEach(summary => {
         const elements = summary.added.concat(summary.attributeChanged.src);
-        return map(elements, processImg);
+        return map(elements, q.enqueue);
       });
     },
     queries: [{ element: 'img', elementAttributes: 'src' }]
@@ -49,12 +49,16 @@ function observe() {
 }
 
 
+const q = queue.up((img) => processImg(img).then(q.done).catch(q.done));
+q.concurrency = 10;
+
 let isOn = false;
 
 function doStart() {
   isOn = !isOn;
   if (isOn) {
-    processAll().then(observe);
+    observe();
+    processAll()
   } else {
     stopObserver();
     resetAll();
