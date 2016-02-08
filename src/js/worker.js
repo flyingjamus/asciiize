@@ -8,6 +8,4 @@ self.onmessage = function(e) {
     const result = asciiize(blob, data.options);
     self.postMessage({ id: data.id, message: messages.workerDone, result, blob: data.blob }, [data.blob]);
   }
-
-  //postMessage(workerResult);
 };
