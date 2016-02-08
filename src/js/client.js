@@ -1,4 +1,4 @@
-import asciiize, {buildChar} from './common/asciiize';
+import asciiize from './common/asciiize';
 import messages from './common/messages';
 import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
@@ -13,7 +13,8 @@ let isOn = false;
 let key;
 
 
-const objectURLCache = {};
+const originalObjectUrlsCache = {};
+const allObjectUrls = [];
 
 function urlToObjectUrl(src) {
   chrome.runtime.sendMessage({ message: messages.beforeSend, src });
@@ -22,12 +23,14 @@ function urlToObjectUrl(src) {
       return response.blob();
     })
     .then(function(imgBlob) {
-      return URL.createObjectURL(imgBlob);
+      const objectURL = URL.createObjectURL(imgBlob, { autoRevoke: true });
+      allObjectUrls.push(objectURL);
+      return objectURL;
     });
 }
 
 function domToBlob(domString, {naturalWidth: width, naturalHeight: height}) {
-  const data = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  const data = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
               <foreignObject width="100%" height="100%">
               <div xmlns="http://www.w3.org/1999/xhtml">
               ${domString}
@@ -44,17 +47,15 @@ function processDomString(domString, options) {
 
 function imageToCleanObjectUrl(image) {
   const src = image.src;
-  if (!objectURLCache[src]) {
-    objectURLCache[src] = urlToObjectUrl(src);
+  if (!originalObjectUrlsCache[src]) {
+    originalObjectUrlsCache[src] = urlToObjectUrl(src);
   }
-  return objectURLCache[src];
+  return originalObjectUrlsCache[src];
   //.then((objectURL) => loadImage(image, objectURL));
 }
 
 const DATA_REGEX = /^blob:|^data:/;
 const FILE_REGEX = /^file:/;
-function noop() {
-}
 
 const sources = new WeakMap();
 
@@ -120,11 +121,10 @@ function resetImg(img) {
 
 function measureFont(fontFamily, fontSize) {
   const iframe = getIframe();
-  const tester = buildChar({}, [255, 255, 255, 1]);
   const container = iframe.contentDocument.body;
   const el = iframe.contentDocument.createElement('div');
-
-  el.innerHTML = getContainerString(tester, { fontFamily, fontSize, background: 'none', color: true });
+  el.style.position = 'absolute';
+  el.innerHTML = getContainerString('X', { fontFamily, fontSize, background: 'none', color: true });
   container.appendChild(el);
   const res = el.children[0].getBoundingClientRect();
   container.removeChild(el);
@@ -137,13 +137,14 @@ const DEFAULT_OPTIONS = {
   background: 'black',
   fontFamily: 'monospace',
   fontSize: [5, 15],
-  fontCoefficient: 60,
+  fontCoefficient: 80,
   color: 'white',
   //color: true,
   //color: 'lightgreen',
-  contrast: 70,
+  //contrast: 70,
   minWidth: 10,
-  minHeight: 10
+  minHeight: 10,
+  widthMinRatio: 0.7
 };
 
 const IFRAME_SRCDOC = `<!doctype html>
@@ -173,25 +174,23 @@ function getContainerString(content, options) {
             background: ${options.background};
             font: ${options.fontSize}px ${options.fontFamily};
             color: ${color};
-            position: absolute;
             ">
               ${content}
           </div>`;
 }
 
 function createOptions(img) {
-  var naturalWidth = img.naturalWidth;
-  var naturalHeight = img.naturalHeight;
   const options = Object.assign({}, DEFAULT_OPTIONS, {
-    naturalWidth: naturalWidth,
-    naturalHeight: naturalHeight
-    //offsetWidth: img.offsetWidth,
-    //offsetHeight: img.offsetHeight
+    naturalWidth: img.naturalWidth,
+    naturalHeight: img.naturalHeight,
+    offsetWidth: img.offsetWidth,
+    offsetHeight: img.offsetHeight
   });
 
   if (Array.isArray(options.fontSize)) {
     const [minFont, maxFont] = options.fontSize;
-    options.fontSize = parseInt(clamp(options.naturalWidth / options.fontCoefficient, minFont, maxFont));
+    const ratio = options.naturalWidth / options.offsetWidth;
+    options.fontSize = parseInt(clamp(options.naturalWidth / options.fontCoefficient, minFont * ratio, maxFont * ratio));
   }
 
   const {width: fontWidth, height: fontHeight} = getFontDimensions(options.fontFamily, options.fontSize);
@@ -215,21 +214,31 @@ function asciiizeInWorker(blob, options) {
 
 function validateProcessingNeeded(img) {
   if (isAsciiized(img)) {
-    console.log('again')
     return Promise.reject();
   }
   return Promise.resolve(img);
 }
 
-function setImageObjectUrl(img, objectUrl) {
+function setImageObjectUrl(img, blob) {
   const source = sources.get(img);
+  const objectUrl = URL.createObjectURL(blob, { autoRevoke: true });
+  allObjectUrls.push(objectUrl);
+  if (source.objectUrl) {
+    URL.revokeObjectURL(source.objectUrl);
+  }
   source.objectUrl = objectUrl;
   return objectUrl;
 }
 
+function onAnimationFrame() {
+  return new Promise(resolve => requestAnimationFrame(resolve));
+  //return new Promise(resolve => setTimeout(resolve, 0));
+}
+
 function processImg(img) {
   let options;
-  return validateProcessingNeeded(img)
+  return onAnimationFrame()
+    .then(() => validateProcessingNeeded(img))
     .then(loadImage)
     .then(createOptions)
     .then(_options => options = _options)
@@ -238,8 +247,7 @@ function processImg(img) {
     .then(data => returnBlobToSources(img, data))
     .then(data => data.result)
     .then(domString => processDomString(domString, options))
-    .then(blob => URL.createObjectURL(blob))
-    .then(objectUrl => setImageObjectUrl(img, objectUrl))
+    .then(blob => setImageObjectUrl(img, blob))
     .then(objectUrl => loadImage(img, objectUrl))
     .catch(e => e ? console.log(e) : null);
 }
@@ -275,12 +283,12 @@ function stopObserver() {
 }
 
 function observe() {
-  stopObserver()
+  stopObserver();
   observer = new mutationSummary({
     callback: (summaries) => {
       stopObserver()
       sequencePromises(summaries, summary => {
-        const elements = summary.added.concat(summary.attributeChanged.src)
+        const elements = summary.added.concat(summary.attributeChanged.src);
         return map(elements, processImg);
       }).then(observe)
     },
@@ -290,10 +298,10 @@ function observe() {
 
 function doStart() {
   isOn = !isOn;
-  stopObserver();
   if (isOn) {
     processAll().then(observe);
   } else {
+    stopObserver();
     resetAll();
   }
 }
@@ -315,6 +323,5 @@ chrome.runtime.onMessage.addListener(
 
 let selected;
 
-window.addEventListener('contextmenu', function(e) {
-  selected = e.target;
-});
+window.addEventListener('contextmenu', e => selected = e.target);
+window.addEventListener('unload', () => allObjectUrls.forEach(URL.revokeObjectURL.bind(URL)));

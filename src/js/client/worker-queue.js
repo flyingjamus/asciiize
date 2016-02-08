@@ -25,7 +25,6 @@ WorkerQueue.prototype = {
     });
   },
   _processItem({workerMessage, cb}){
-    console.log('processing')
     const worker = this._getWorker();
     const id = uniqueId();
     const message = Object.assign({ id }, workerMessage[0])
@@ -45,7 +44,6 @@ WorkerQueue.prototype = {
       worker.number = this.workers.total
       this.workers.total++;
     }
-    console.log(worker.number, 'workers', this.workers.total);
     return worker;
   },
   _releaseWorker(worker){

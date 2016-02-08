@@ -1,3 +1,4 @@
+/* flyingjamus: Removed dummy worker because it was causing problems with postMessage transferList*/
 /*
 Copyright 2013 Rob Wu <gwnRob@gmail.com>
 Licensed under the Apache License, Version 2.0 (the "License");
