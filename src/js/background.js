@@ -42,7 +42,6 @@ function attachRequestListener(src) {
     if (headerIndex > -1) {
       requestsToCapture[details.requestId] = true;
       chrome.webRequest.onBeforeSendHeaders.removeListener(listener, { urls: [src] });
-      console.log(details.requestHeaders[headerIndex]);
       details.requestHeaders.splice(headerIndex, 1);
       return { requestHeaders: details.requestHeaders };
     }

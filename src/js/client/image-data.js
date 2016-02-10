@@ -25,35 +25,33 @@ function urlToObjectUrl(src) {
     })
 }
 
-function imageToCleanObjectUrl(image) {
-  const src = image.src;
+function createCORSImage(image) {
+  const src = image.currentSrc || image.src;
   if (!originalObjectUrlsCache[src]) {
     originalObjectUrlsCache[src] = urlToObjectUrl(src);
   }
-  return originalObjectUrlsCache[src];
+  return originalObjectUrlsCache[src].then(objectUrl => loadImage(document.createElement('img'), objectUrl));
 }
 
 const FILE_REGEX = /^file:/;
 const DATA_REGEX = /^blob:|^data:/;
 
-function getImageData(img, options) {
+function getImageDataInner(img, options) {
   return Promise.resolve()
     .then(() => {
-      if (DATA_REGEX.test(img.src)) {
-        return img.src;
-      } else if (FILE_REGEX.test(img.src)) {
-        throw('We dont really deal with file urls');
-      } else {
-        return imageToCleanObjectUrl(img);
-      }
-    })
-    .then(src => loadImage(document.createElement('img'), src))
-    .then(image => {
       const hiddenCanvas = document.createElement('canvas');
       const {naturalWidth, naturalHeight, newWidth, newHeight} = options;
-      hiddenCanvas.getContext('2d').drawImage(image, 0, 0, naturalWidth, naturalHeight, 0, 0, newWidth, newHeight);
+      hiddenCanvas.getContext('2d').drawImage(img, 0, 0, naturalWidth, naturalHeight, 0, 0, newWidth, newHeight);
       return hiddenCanvas.getContext('2d').getImageData(0, 0, newWidth, newHeight).data;
     })
+}
+
+function getImageData(img, options) {
+  return getImageDataInner(img, options)
+    .catch(() => {
+      return createCORSImage(img)
+        .then(newImg => getImageDataInner(newImg, options));
+    });
 }
 
 

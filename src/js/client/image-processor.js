@@ -28,23 +28,21 @@ function processDomString(domString, options) {
 
 const sources = new WeakMap();
 
-function getBlob(img, options) {
-  let source = sources.get(img);
-
-  if (source && source.src === img.src) {
-    return Promise.resolve(source.data);
-  }
-
-  source = {
-    src: img.src,
+function getAndSetBlob(img, options) {
+  const source = {
+    src: img.currentSrc,
     srcset: img.srcset,
     options: options
   };
+  sources.set(img, source);
   return getImageData(img, options)
-    .then((blob) => {
+    .then(blob => {
       source.data = blob;
-      sources.set(img, source);
-      return source.data;
+      return blob;
+    })
+    .catch(() => {
+      source.failed = true;
+      return Promise.reject();
     });
 }
 
@@ -54,7 +52,6 @@ function returnBlobToSources(img, data) {
   if (source) {
     source.data = new Uint8ClampedArray(data.blob);
   }
-  sources.set(img, source);
   return data;
 }
 
@@ -77,9 +74,9 @@ const DEFAULT_OPTIONS = {
   fontFamily: 'monospace',
   fontSize: [5, 15],
   fontCoefficient: 80,
-  color: 'white',
+  //color: 'white',
   //color: true,
-  //color: 'lightgreen',
+  color: 'lightgreen',
   //contrast: 70,
   minWidth: 10,
   minHeight: 10,
@@ -146,10 +143,10 @@ function createOptions(img) {
 
 function isAsciiized(img) {
   const source = sources.get(img);
-  return source && img.src === source.objectUrl;
+  return source && (source.failed || img.src === source.objectUrl);
 }
 
-const workerQueue = WorkerQueue.create({ numWorkers: 8, workerUrl: chrome.extension.getURL('worker.js') });
+const workerQueue = WorkerQueue.create({ numWorkers: 4, workerUrl: chrome.extension.getURL('worker.js') });
 
 function asciiizeInWorker(blob, options) {
   return workerQueue.enqueue({ message: messages.workerStart, blob: blob.buffer, options }, [blob.buffer])
@@ -173,18 +170,26 @@ function setImageObjectUrl(img, blob) {
   return objectUrl;
 }
 
-function processImg(img) {
-  let options;
-  return validateProcessingNeeded(img)
-    .then(loadImage)
-    .then(createOptions)
-    .then(_options => options = _options)
-    .then(options => getBlob(img, options))
+function getAsciizedObjectUrl(img, options) {
+  const source = sources.get(img);
+
+  if (source && source.src === img.currentSrc) {
+    return Promise.resolve(source.objectUrl);
+  }
+
+  return getAndSetBlob(img, options)
     .then(blob => asciiizeInWorker(blob, options))
     .then(data => returnBlobToSources(img, data))
     .then(data => data.result)
     .then(domString => processDomString(domString, options))
     .then(blob => setImageObjectUrl(img, blob))
+}
+
+function processImg(img) {
+  return validateProcessingNeeded(img)
+    .then(loadImage)
+    .then(createOptions)
+    .then(options => getAsciizedObjectUrl(img, options))
     .then(objectUrl => loadImage(img, objectUrl))
     .catch(e => e ? console.log(e) : null);
 }
@@ -193,8 +198,6 @@ function resetImg(img) {
   const source = sources.get(img);
   if (source) {
     source.options = false;
-    sources.set(img, source);
-    URL.revokeObjectURL(source.objectUrl);
     return loadImage(img, source.src, source.srcset);
   }
 }

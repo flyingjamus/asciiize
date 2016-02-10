@@ -7,16 +7,9 @@ import quantize from 'quantize';
 
 //const CHARS = ['@','#','$','=','*','!',';',':','~','-',',','.'];
 //const CHARS = '.,:;i1tfLCG08@'.split('').reverse().concat(['&nbsp;']);
-const CHARS = ['&nbsp;', '&nbsp;'].concat('.,:;clodxkO0KXN@'.split(''));
+const CHARS = ['&nbsp;'].concat('.,:;codxkO0KXN@'.split(''));
 const FIRST_CHAR = CHARS[0];
 const NUM_CHARS = CHARS.length - 1;
-
-function createContrastor(contrast) {
-  const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-  return memoize(function(v, i) {
-    return clamp(contrastFactor * (v - 128) + 128, 0, 255);
-  });
-}
 
 function getCharGetter(colorMap) {
   const palette = colorMap.palette().sort((a, b) => a[0] + a[1] + a[2] - b[0] - b[1] - b[2]);
@@ -43,8 +36,6 @@ function buildCharInner(options, pixel) {
 const buildChar = memoize(buildCharInner, ({color, fontWidth, bottomCutoff}, pixel) => {
   return [color === true, fontWidth, bottomCutoff].concat(pixel).join(',');
 });
-//const buildChar = buildCharInner;
-
 
 function analyzeImage(imageData) {
   const length = imageData.length;
@@ -60,8 +51,8 @@ function analyzeImage(imageData) {
   }
 }
 
-function buildDomString(imageData, options) {
-  const {newHeight, newWidth, contrast} = options;
+function buildDomString(options) {
+  const {newWidth} = options;
   const out = [];
 
   options.pixels.forEach((pixel, i) => {
@@ -78,7 +69,7 @@ function buildDomString(imageData, options) {
 
 function asciiize(imageData, options) {
   const newOptions = Object.assign({}, options, analyzeImage(imageData));
-  return buildDomString(imageData, newOptions);
+  return buildDomString(newOptions);
 }
 
 export default asciiize;

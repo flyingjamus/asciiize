@@ -6,25 +6,13 @@ import messages from './common/messages';
 import {revokeObjectUrls, processImg, resetImg} from './client/image-processor';
 import {setKey} from './client/image-data';
 
-function sequencePromises(arr, cb) {
-  let promise = Promise.resolve();
-  const res = map(arr, (v, i) => {
-    promise = promise
-      .then(()=> cb(v, i))
-      .catch(()=> cb(v, i));
-    return promise
-  });
-  promise.then(() => res);
-  return promise;
-}
-
 function processAll() {
   //return sequencePromises(document.getElementsByTagName('img'), processImg);
   map(document.getElementsByTagName('img'), q.enqueue);
 }
 
 function resetAll() {
-  return sequencePromises(document.getElementsByTagName('img'), resetImg);
+  return map(document.getElementsByTagName('img'), img => requestAnimationFrame(() => resetImg(img)));
 }
 
 let observer;
@@ -49,7 +37,7 @@ function observe() {
 }
 
 
-const q = queue.up((img) => processImg(img).then(q.done).catch(q.done));
+const q = queue.up((img) => requestAnimationFrame(() => processImg(img).then(q.done).catch(q.done)));
 q.concurrency = 10;
 
 let isOn = false;
