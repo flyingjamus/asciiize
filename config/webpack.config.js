@@ -8,7 +8,8 @@ module.exports = {
     background: './background.js',
     client: './client.js',
     worker: './worker.js',
-    reload: './reload.js',
+    popup: './popup.js',
+    reload: './reload.js'
   },
 
   output: {

@@ -1,7 +1,10 @@
 export default {
   start: 'start',
+  stop: 'stop',
   single: 'single',
   beforeSend: 'beforesend',
   workerStart: 'workerstart',
-  workerDone: 'workerdone'
+  workerDone: 'workerdone',
+  getOptions: 'getoptions',
+  setOptions: 'setoptions'
 };

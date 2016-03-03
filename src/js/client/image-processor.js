@@ -1,11 +1,13 @@
 import clamp from 'lodash/clamp';
 import once from 'lodash/once';
 import memoize from 'lodash/memoize';
+import isEqual from 'lodash/isEqual'
 
 import messages from '../common/messages';
 import {waitForImage, loadImage} from '../common/image-utils';
 import WorkerQueue from '../client/worker-queue';
 import {getImageData, revokeObjectUrls as imageDataRevoke} from '../client/image-data';
+import sources from '../client/dom-sources'
 
 const allObjectUrls = [];
 
@@ -26,13 +28,12 @@ function processDomString(domString, options) {
 }
 
 
-const sources = new WeakMap();
-
 function getAndSetBlob(img, options) {
   const source = {
     src: img.currentSrc,
     srcset: img.srcset,
-    options: options
+    options: options,
+    el: img
   };
   sources.set(img, source);
   return getImageData(img, options)
@@ -69,20 +70,6 @@ function measureFont(fontFamily, fontSize) {
 
 const getFontDimensions = memoize(measureFont, (fontFamily, fontSize) => fontFamily + fontSize);
 
-const DEFAULT_OPTIONS = {
-  background: 'black',
-  fontFamily: 'monospace',
-  fontSize: [5, 15],
-  fontCoefficient: 80,
-  //color: 'white',
-  //color: true,
-  color: 'lightgreen',
-  //contrast: 70,
-  minWidth: 10,
-  minHeight: 10,
-  widthMinRatio: 0.7
-};
-
 const IFRAME_SRCDOC = `<!doctype html>
                         <html lang=en>
                         <meta charset=utf-8>
@@ -115,14 +102,13 @@ function getContainerString(content, options) {
           </div>`;
 }
 
-function createOptions(img) {
-  const options = Object.assign({}, DEFAULT_OPTIONS, {
+function createOptions(inOptions, img) {
+  const options = Object.assign({}, inOptions, {
     naturalWidth: img.naturalWidth,
     naturalHeight: img.naturalHeight,
     offsetWidth: img.offsetWidth,
     offsetHeight: img.offsetHeight
   });
-
   if (img.naturalWidth < 5 || img.naturalHeight < 5) {
     return Promise.reject();
   }
@@ -170,11 +156,16 @@ function setImageObjectUrl(img, blob) {
   return objectUrl;
 }
 
-function getAsciizedObjectUrl(img, options) {
+function getAsciiizedObjectUrl(img, options) {
   const source = sources.get(img);
 
   if (source && source.src === img.currentSrc) {
-    return Promise.resolve(source.objectUrl);
+    if (isEqual(options, source.options)) {
+      return source.objectUrl;
+    } else {
+      source.options = options;
+      URL.revokeObjectURL(source.objectUrl)
+    }
   }
 
   return getAndSetBlob(img, options)
@@ -185,11 +176,11 @@ function getAsciizedObjectUrl(img, options) {
     .then(blob => setImageObjectUrl(img, blob))
 }
 
-function processImg(img) {
+function processImg(img, options) {
   return validateProcessingNeeded(img)
     .then(loadImage)
-    .then(createOptions)
-    .then(options => getAsciizedObjectUrl(img, options))
+    .then(createOptions.bind(null, options))
+    .then(options => getAsciiizedObjectUrl(img, options))
     .then(objectUrl => loadImage(img, objectUrl))
     .catch(e => e ? console.log(e) : null);
 }
@@ -203,7 +194,9 @@ function resetImg(img) {
 }
 
 function revokeObjectUrls() {
-  allObjectUrls.forEach(URL.revokeObjectURL.bind(URL));
+  if (allObjectUrls) {
+    allObjectUrls.forEach(URL.revokeObjectURL.bind(URL));
+  }
   imageDataRevoke();
 }
 

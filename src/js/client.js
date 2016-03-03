@@ -7,7 +7,6 @@ import {revokeObjectUrls, processImg, resetImg} from './client/image-processor';
 import {setKey} from './client/image-data';
 
 function processAll() {
-  //return sequencePromises(document.getElementsByTagName('img'), processImg);
   map(document.getElementsByTagName('img'), q.enqueue);
 }
 
@@ -36,37 +35,41 @@ function observe() {
   });
 }
 
-
-const q = queue.up((img) => requestAnimationFrame(() => processImg(img).then(q.done).catch(q.done)));
+let options = {};
+const q = queue.up((img) => requestAnimationFrame(() => processImg(img, options).then(q.done).catch(q.done)));
 q.concurrency = 10;
 
-let isOn = false;
+function doStart(_options) {
+  Object.assign(options, _options);
+  observe();
+  processAll();
+}
 
-function doStart() {
-  isOn = !isOn;
-  if (isOn) {
-    observe();
-    processAll()
-  } else {
-    stopObserver();
-    resetAll();
-  }
+function doStop() {
+  stopObserver();
+  resetAll();
 }
 
 chrome.runtime.onMessage.addListener(
-  function(request, sender, response) {
+  function(request) {
     if (request.key) {
       setKey(request.key);
     }
-    if (request.message === messages.start) {
-      doStart();
-      if (response) {
-        response({ isOn });
-      }
-    } else if (request.message === messages.single && selected) {
-      processImg(selected);
+    switch (request.message) {
+      case messages.start:
+        doStart(request.options);
+        break;
+      case messages.stop:
+        doStop();
+        break;
+      case messages.single:
+        if (selected) {
+          processImg(selected, request.options);
+        }
+        break;
     }
-  });
+  })
+;
 
 let selected;
 

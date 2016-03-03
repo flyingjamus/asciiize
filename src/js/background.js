@@ -1,37 +1,20 @@
-import messages from './common/messages';
-import randomstring from 'randomstring';
 import findIndex from 'lodash/findIndex';
-
-const key = randomstring.generate();
-
-function messageCurrentTab(message, cb) {
-
-  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    var id = tabs[0].id;
-
-    function cbWrapper(response) {
-      if (cb) {
-        cb(response, id);
-      }
-    }
-
-    chrome.tabs.sendMessage(id, message, cbWrapper);
-  });
-}
+import messages from './common/messages';
+import messageCurrentTab from './common/message-current-tab'
 
 function setBadge(response = {}, tabId) {
   const path = response.isOn ? 'assets/icon_active.png' : 'assets/icon.png';
-  chrome.browserAction.setIcon({tabId, path})
+  chrome.browserAction.setIcon({ tabId, path })
 }
 
 chrome.browserAction.onClicked.addListener(() => {
-  messageCurrentTab({ message: messages.start, key: key }, setBadge);
+  messageCurrentTab({ message: messages.start }, setBadge);
 });
 
 chrome.contextMenus.create({
   title: 'Asciiize',
   contexts: ['image'],
-  onclick: messageCurrentTab.bind(null, { message: messages.single, key: key })
+  onclick: messageCurrentTab.bind(null, { message: messages.single })
 });
 
 const requestsToCapture = {};
@@ -66,10 +49,46 @@ function attachResponseListener(src) {
   chrome.webRequest.onHeadersReceived.addListener(listener, { urls: [src] }, ['blocking', 'responseHeaders']);
 }
 
-chrome.runtime.onMessage.addListener(request => {
-  if (request.message === messages.beforeSend) {
-    attachRequestListener(request.src);
-    attachResponseListener(request.src);
+const DEFAULT_OPTIONS = {
+  background: 'black',
+  fontFamily: 'monospace',
+  fontSize: [5, 15],
+  fontCoefficient: 80,
+  //color: 'white',
+  //color: true,
+  color: 'lightgreen',
+  //contrast: 70,
+  minWidth: 10,
+  minHeight: 10,
+  widthMinRatio: 0.7,
+  force: true
+};
+
+function getOptions() {
+  return new Promise(resolve => chrome.storage.local.get(DEFAULT_OPTIONS, resolve));
+
+}
+
+function setOptions(options) {
+  return new Promise(resolve => chrome.storage.local.set(options, resolve));
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log(request)
+  switch (request.message) {
+    case messages.beforeSend:
+      attachRequestListener(request.src);
+      attachResponseListener(request.src);
+      break;
+    case messages.getOptions:
+      getOptions().then(function(opt) {
+        sendResponse(opt)
+      });
+      return true;
+      break;
+    case messages.setOptions:
+      setOptions(request.options);
+      break;
   }
 });
 

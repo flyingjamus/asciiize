@@ -9,7 +9,9 @@ function setKey(_key) {
   key = _key;
 }
 function revokeObjectUrls() {
-  allObjectUrls.forEach(allObjectUrls.forEach(URL.revokeObjectURL.bind(URL)));
+  if (allObjectUrls) {
+    allObjectUrls.forEach(allObjectUrls.forEach(URL.revokeObjectURL.bind(URL)));
+  }
 }
 
 function urlToObjectUrl(src) {

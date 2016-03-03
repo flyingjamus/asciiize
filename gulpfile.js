@@ -82,7 +82,7 @@ gulp.task('build', ['pre-build'], function (callback) {
 });
 
 gulp.task('static', function () {
-  gulp.src(['manifest.json', 'src/**/*.css', 'src/**/*.png'])
+  gulp.src(['manifest.json', 'src/**/*.css', 'src/**/*.png', 'src/**/*.html'])
     .pipe(gulp.dest('./build'));
 });
 
@@ -130,8 +130,10 @@ gulp.task('dev', ['static', 'build-dev', 'reload'], function () {
   gulp.watch(['src/*.json'], ['watch-static']);
   gulp.watch(['src/css/*.css'], ['watch-static']);
   gulp.watch(['src/assets/*.png'], ['watch-static']);
+  gulp.watch(['src/views/*.html'], ['watch-static']);
+  gulp.watch(['src/manifest.json'], ['watch-static']);
 
-  gulp.watch(['src/js/**/*.js', 'src/views/*.html'], ['watch-webpack']);
+  gulp.watch(['src/js/**/*.js'], ['watch-webpack']);
 });
 
 gulp.task('default', ['dev']);
