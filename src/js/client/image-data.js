@@ -10,7 +10,7 @@ function setKey(_key) {
 }
 function revokeObjectUrls() {
   if (allObjectUrls) {
-    allObjectUrls.forEach(allObjectUrls.forEach(URL.revokeObjectURL.bind(URL)));
+    allObjectUrls.forEach(URL.revokeObjectURL.bind(URL));
   }
 }
 

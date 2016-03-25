@@ -84,6 +84,7 @@ gulp.task('build', ['pre-build'], function (callback) {
 gulp.task('static', function () {
   gulp.src(['manifest.json', 'src/**/*.css', 'src/**/*.png', 'src/**/*.html'])
     .pipe(gulp.dest('./build'));
+  gulp.src(['vendor/**/*.*']).pipe(gulp.dest('./build/vendor'))
 });
 
 gulp.task('build-dev', [], function (callback) {

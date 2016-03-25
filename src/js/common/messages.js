@@ -6,5 +6,7 @@ export default {
   workerStart: 'workerstart',
   workerDone: 'workerdone',
   getOptions: 'getoptions',
-  setOptions: 'setoptions'
+  setOptions: 'setoptions',
+  resetOptions: 'resetoptions',
+  status: 'status'
 };

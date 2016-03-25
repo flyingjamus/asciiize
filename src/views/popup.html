@@ -3,13 +3,53 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="description" content="">
-    <link rel="stylesheet" href="../css/milligram.min.css">
+    <link rel="stylesheet" href="../vendor/material.min.css">
+    <link rel="stylesheet" href="../css/popup.css">
     <script src="../popup.js"></script>
     <title>Asciiize Popup</title>
 </head>
 <body>
-<a class="button" href="#">Default Button</a>
+<div class="on-off-container">
+    <label class="mdl-switch mdl-js-switch">
+        <input type="checkbox" id="switch-on-off" class="mdl-switch__input" name="onOff" checked>
+    </label>
+</div>
 
-<button class="button button-outline">Outlined Button</button>
+<form action="#" id="options-form">
+    <ul class="mdl-list">
+        <li class="mdl-list__item">
+            <label class="mdl-list__item-primary-content mdl-radio mdl-js-radio mdl-js-ripple-effect"
+                   for="color-type-full">
+                <input id="color-type-full" type="radio" class="mdl-radio__button mdl-list__item-avatar"
+                       name="colorType"
+                       value="full">
+                Full Color
+            </label>
+        </li>
+
+        <li class="mdl-list__item">
+            <label class="mdl-list__item-primary-content mdl-radio mdl-js-radio mdl-js-ripple-effect"
+                   for="color-type-single">
+                <input id="color-type-single" type="radio" class="mdl-radio__button mdl-list__item-avatar"
+                       name="colorType"
+                       value="single">
+                Single Color
+            </label>
+            <span class="mdl-list__item-secondary-action">
+                <input name="colorValue" type="color" id="color-value"/>
+            </span>
+        </li>
+
+        <li class="mdl-list__item">
+            <div class="mdl-list__item-primary-content">
+                Background
+            </div>
+            <span class="mdl-list__item-secondary-action">
+                <input name="background" type="color" id="color-background"/>
+            </span>
+        </li>
+    </ul>
+</form>
+
 </body>
 </html>

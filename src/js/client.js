@@ -11,7 +11,7 @@ function processAll() {
 }
 
 function resetAll() {
-  return map(document.getElementsByTagName('img'), img => requestAnimationFrame(() => resetImg(img)));
+  return map(document.getElementsByTagName('img'), resetImg);
 }
 
 let observer;
@@ -36,42 +36,65 @@ function observe() {
 }
 
 let options = {};
-const q = queue.up((img) => requestAnimationFrame(() => processImg(img, options).then(q.done).catch(q.done)));
-q.concurrency = 10;
+const q = queue.up((img) => processImg(img, options).then(q.done).catch(q.done));
+
+q.stop = function() {
+  return new Promise((resolve, reject) => {
+    if (this._running || this._pending.length) {
+      this._pending.length = 0;
+      this.allDone = () => {
+        this.allDone = null;
+        resolve();
+      }
+    } else {
+      resolve();
+    }
+  });
+};
+q.concurrency = 4;
 
 function doStart(_options) {
-  Object.assign(options, _options);
-  observe();
-  processAll();
+  stopObserver();
+  q.stop()
+    .then(() => {
+      Object.assign(options, _options);
+      processAll();
+      observe();
+    });
 }
 
 function doStop() {
   stopObserver();
-  resetAll();
+  q.stop().then(resetAll);
 }
-
-chrome.runtime.onMessage.addListener(
-  function(request) {
-    if (request.key) {
-      setKey(request.key);
-    }
-    switch (request.message) {
-      case messages.start:
-        doStart(request.options);
-        break;
-      case messages.stop:
-        doStop();
-        break;
-      case messages.single:
-        if (selected) {
-          processImg(selected, request.options);
-        }
-        break;
-    }
-  })
-;
 
 let selected;
 
-window.addEventListener('contextmenu', e => selected = e.target);
-window.addEventListener('unload', revokeObjectUrls);
+function unload() {
+  stopObserver();
+  revokeObjectUrls();
+}
+
+window.addEventListener('unload', unload);
+
+chrome.runtime.onMessage.addListener((request, sender, cb) => {
+  if (request.key) {
+    setKey(request.key);
+  }
+  switch (request.message) {
+    case messages.start:
+      doStart(request.options);
+      break;
+    case messages.stop:
+      doStop();
+      break;
+    case messages.single:
+      if (selected) {
+        processImg(selected, request.options);
+      }
+      break;
+    case messages.status:
+      cb(1);
+      break;
+  }
+});

@@ -1,16 +1,15 @@
 {
   "name": "ASCIIize",
   "description": "Turn any image to ASCII art. Kindoff",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "icons": {
     "128": "assets/icon.png"
   },
   "permissions": [
     "webRequest",
     "webRequestBlocking",
-    "contextMenus",
-    "storage",
-    "<all_urls>"
+    "activeTab",
+    "storage"
   ],
   "background": {
     "scripts": [
@@ -25,17 +24,6 @@
     },
     "default_popup": "views/popup.html"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "client.js"
-      ],
-      "all_frames": true
-    }
-  ],
   "manifest_version": 2,
   "web_accessible_resources": [
     "assets/icon.png",

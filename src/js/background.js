@@ -2,21 +2,6 @@ import findIndex from 'lodash/findIndex';
 import messages from './common/messages';
 import messageCurrentTab from './common/message-current-tab'
 
-function setBadge(response = {}, tabId) {
-  const path = response.isOn ? 'assets/icon_active.png' : 'assets/icon.png';
-  chrome.browserAction.setIcon({ tabId, path })
-}
-
-chrome.browserAction.onClicked.addListener(() => {
-  messageCurrentTab({ message: messages.start }, setBadge);
-});
-
-chrome.contextMenus.create({
-  title: 'Asciiize',
-  contexts: ['image'],
-  onclick: messageCurrentTab.bind(null, { message: messages.single })
-});
-
 const requestsToCapture = {};
 
 function attachRequestListener(src) {
@@ -56,38 +41,42 @@ const DEFAULT_OPTIONS = {
   fontCoefficient: 80,
   //color: 'white',
   //color: true,
-  color: 'lightgreen',
+  colorType: 'full',
+  colorValue: 'white',
   //contrast: 70,
   minWidth: 10,
   minHeight: 10,
-  widthMinRatio: 0.7,
-  force: true
+  widthMinRatio: 0.7
 };
 
 function getOptions() {
   return new Promise(resolve => chrome.storage.local.get(DEFAULT_OPTIONS, resolve));
-
 }
 
 function setOptions(options) {
   return new Promise(resolve => chrome.storage.local.set(options, resolve));
 }
 
+function resetOptions() {
+  return new Promise(resolve => chrome.storage.local.set(DEFAULT_OPTIONS, resolve));
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log(request)
   switch (request.message) {
     case messages.beforeSend:
       attachRequestListener(request.src);
       attachResponseListener(request.src);
       break;
     case messages.getOptions:
-      getOptions().then(function(opt) {
-        sendResponse(opt)
-      });
+      console.log('getOptions')
+      getOptions().then(sendResponse);
       return true;
       break;
     case messages.setOptions:
       setOptions(request.options);
+      break;
+    case messages.resetOptions:
+      resetOptions(request.options);
       break;
   }
 });

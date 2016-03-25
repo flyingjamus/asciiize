@@ -7,20 +7,24 @@ import quantize from 'quantize';
 
 //const CHARS = ['@','#','$','=','*','!',';',':','~','-',',','.'];
 //const CHARS = '.,:;i1tfLCG08@'.split('').reverse().concat(['&nbsp;']);
-const CHARS = ['&nbsp;'].concat('.,:;codxkO0KXN@'.split(''));
-const FIRST_CHAR = CHARS[0];
+const CHARS = (['&nbsp;'].concat('.,:;codxkO0KXN@'.split('')));
+const FIRST_CHAR = '&nbsp;';
 const NUM_CHARS = CHARS.length - 1;
 
 function getCharGetter(colorMap) {
   const palette = colorMap.palette().sort((a, b) => a[0] + a[1] + a[2] - b[0] - b[1] - b[2]);
-  return memoize(pixel => {
-    return CHARS[findIndex(palette, matches(pixel))];
-  });
+  var stretch = 16 / colorMap.size();
+  return memoize(
+    pixel => {
+      const i = findIndex(palette, matches(pixel));
+      return CHARS[Math.round(i * stretch)];
+    },
+    pixel => pixel.join(',')
+  );
 }
 
 function buildCharInner(options, pixel) {
   const {color, fontWidth, getChar, colorMap} = options;
-
   const char = getChar(colorMap.nearest(pixel));
   if (char === FIRST_CHAR) {
     return `<span style="width: ${fontWidth}px; display: inline-block;"></span>`;

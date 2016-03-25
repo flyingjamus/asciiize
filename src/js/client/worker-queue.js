@@ -41,7 +41,7 @@ WorkerQueue.prototype = {
     let worker = this.workers.shift();
     if (!worker) {
       worker = new Worker(this.workerUrl);
-      worker.number = this.workers.total
+      worker.number = this.workers.total;
       this.workers.total++;
     }
     return worker;

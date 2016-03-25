@@ -29,22 +29,27 @@ function processDomString(domString, options) {
 
 
 function getAndSetBlob(img, options) {
-  const source = {
-    src: img.currentSrc,
-    srcset: img.srcset,
-    options: options,
-    el: img
-  };
-  sources.set(img, source);
-  return getImageData(img, options)
-    .then(blob => {
-      source.data = blob;
-      return blob;
-    })
-    .catch(() => {
-      source.failed = true;
-      return Promise.reject();
-    });
+  let source = sources.get(img);
+  if (source && source.data) {
+    return Promise.resolve(source.data);
+  } else {
+    source = {
+      src: img.currentSrc,
+      srcset: img.srcset,
+      options: options,
+      el: img
+    };
+    sources.set(img, source);
+    return getImageData(img, options)
+      .then(blob => {
+        source.data = blob;
+        return blob;
+      })
+      .catch(() => {
+        source.failed = true;
+        return Promise.reject();
+      });
+  }
 }
 
 
@@ -61,7 +66,7 @@ function measureFont(fontFamily, fontSize) {
   const container = iframe.contentDocument.body;
   const el = iframe.contentDocument.createElement('div');
   el.style.position = 'absolute';
-  el.innerHTML = getContainerString('X', { fontFamily, fontSize, background: 'none', color: true });
+  el.innerHTML = getContainerString('X', { fontFamily, fontSize, background: 'none' });
   container.appendChild(el);
   const res = el.children[0].getBoundingClientRect();
   container.removeChild(el);
@@ -107,7 +112,8 @@ function createOptions(inOptions, img) {
     naturalWidth: img.naturalWidth,
     naturalHeight: img.naturalHeight,
     offsetWidth: img.offsetWidth,
-    offsetHeight: img.offsetHeight
+    offsetHeight: img.offsetHeight,
+    color: inOptions.colorType !== 'single' ? true : inOptions.colorValue
   });
   if (img.naturalWidth < 5 || img.naturalHeight < 5) {
     return Promise.reject();
@@ -127,9 +133,9 @@ function createOptions(inOptions, img) {
   return Promise.resolve(options);
 }
 
-function isAsciiized(img) {
+function isAsciiized(img, options) {
   const source = sources.get(img);
-  return source && (source.failed || img.src === source.objectUrl);
+  return source && (source.failed || (img.src === source.objectUrl && isEqual(options, source.options)));
 }
 
 const workerQueue = WorkerQueue.create({ numWorkers: 4, workerUrl: chrome.extension.getURL('worker.js') });
@@ -138,11 +144,8 @@ function asciiizeInWorker(blob, options) {
   return workerQueue.enqueue({ message: messages.workerStart, blob: blob.buffer, options }, [blob.buffer])
 }
 
-function validateProcessingNeeded(img) {
-  if (isAsciiized(img)) {
-    return Promise.reject();
-  }
-  return Promise.resolve(img);
+function validateProcessingNeeded(img, options) {
+  return isAsciiized(img, options) ? Promise.reject() : Promise.resolve(img);
 }
 
 function setImageObjectUrl(img, blob) {
@@ -158,14 +161,16 @@ function setImageObjectUrl(img, blob) {
 
 function getAsciiizedObjectUrl(img, options) {
   const source = sources.get(img);
-
-  if (source && source.src === img.currentSrc) {
-    if (isEqual(options, source.options)) {
-      return source.objectUrl;
+  if (source) {
+    var sameSrc = source.src === img.currentSrc || source.objectUrl === img.currentSrc;
+    if (sameSrc) {
+      if (isEqual(options, source.options)) {
+        return Promise.resolve(source.objectUrl);
+      }
     } else {
-      source.options = options;
-      URL.revokeObjectURL(source.objectUrl)
+      source.data = null;
     }
+    source.options = options;
   }
 
   return getAndSetBlob(img, options)
