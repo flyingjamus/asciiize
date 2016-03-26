@@ -181,12 +181,20 @@ function getAsciiizedObjectUrl(img, options) {
     .then(blob => setImageObjectUrl(img, blob))
 }
 
+function loadAsciiizedImage(img, objectUrl) {
+  if (document.querySelector('body[style]') && document.getElementsByTagName('img').length === 1) {
+    window.open(objectUrl);
+  } else {
+    return loadImage(img, objectUrl);
+  }
+}
+
 function processImg(img, options) {
   return validateProcessingNeeded(img)
     .then(loadImage)
     .then(createOptions.bind(null, options))
     .then(options => getAsciiizedObjectUrl(img, options))
-    .then(objectUrl => loadImage(img, objectUrl))
+    .then(objectUrl => loadAsciiizedImage(img, objectUrl))
     .catch(e => e ? console.log(e) : null);
 }
 

@@ -9,7 +9,8 @@
     "webRequest",
     "webRequestBlocking",
     "activeTab",
-    "storage"
+    "storage",
+    "<all_urls>"
   ],
   "background": {
     "scripts": [

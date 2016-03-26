@@ -26,7 +26,11 @@ export function waitForImage(img) {
 
 export function loadImage(img, src, srcset) {
   if (src && img.src !== src || srcset && img.srcset !== srcset) {
-    img.srcset = srcset || '';
+    if (srcset) {
+      img.srcset = srcset;
+    } else {
+      img.removeAttribute('srcset');
+    }
     img.src = src;
   }
   return waitForImage(img);

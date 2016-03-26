@@ -68,7 +68,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       attachResponseListener(request.src);
       break;
     case messages.getOptions:
-      console.log('getOptions')
       getOptions().then(sendResponse);
       return true;
       break;
