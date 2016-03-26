@@ -8,5 +8,8 @@ export default {
   getOptions: 'getoptions',
   setOptions: 'setoptions',
   resetOptions: 'resetoptions',
-  status: 'status'
+  status: 'status',
+  saveImage: 'saveImage',
+  createContext: 'createContext',
+  removeContext: 'removeContext'
 };

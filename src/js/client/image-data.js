@@ -35,9 +35,6 @@ function createCORSImage(image) {
   return originalObjectUrlsCache[src].then(objectUrl => loadImage(document.createElement('img'), objectUrl));
 }
 
-const FILE_REGEX = /^file:/;
-const DATA_REGEX = /^blob:|^data:/;
-
 function getImageDataInner(img, options) {
   return Promise.resolve()
     .then(() => {

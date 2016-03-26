@@ -70,12 +70,35 @@ function doStop() {
 
 let selected;
 
+const url = window.location.origin + window.location.pathname;
+
 function unload() {
+  chrome.runtime.sendMessage({ message: messages.removeContext, url });
   stopObserver();
   revokeObjectUrls();
 }
 
+function savePng() {
+  const canvas = document.createElement('canvas');
+  canvas.width = selected.naturalWidth;
+  canvas.height = selected.naturalHeight;
+  const ctx = canvas.getContext('2d');
+
+  ctx.drawImage(selected, 0, 0);
+
+  var link = document.createElement('a');
+  link.href = canvas.toDataURL("image/png");;
+
+  var fileName = `asciiized_${Date.now()}.png` ;
+  link.download = fileName;
+  link.click();
+
+}
+
 window.addEventListener('unload', unload);
+window.addEventListener('contextmenu', e => selected = e.target);
+
+chrome.runtime.sendMessage({ message: messages.createContext, url });
 
 chrome.runtime.onMessage.addListener((request, sender, cb) => {
   if (request.key) {
@@ -92,6 +115,9 @@ chrome.runtime.onMessage.addListener((request, sender, cb) => {
       if (selected) {
         processImg(selected, request.options);
       }
+      break;
+    case messages.saveImage:
+      savePng();
       break;
     case messages.status:
       cb(1);

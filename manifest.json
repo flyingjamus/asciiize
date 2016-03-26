@@ -10,11 +10,11 @@
     "webRequestBlocking",
     "activeTab",
     "storage",
+    "contextMenus",
     "<all_urls>"
   ],
   "background": {
     "scripts": [
-      "reload.js",
       "background.js"
     ]
   },

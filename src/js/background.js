@@ -40,9 +40,9 @@ const DEFAULT_OPTIONS = {
   fontSize: [5, 15],
   fontCoefficient: 80,
   //color: 'white',
-  //color: true,
+  color: true,
   colorType: 'full',
-  colorValue: 'white',
+  colorValue: '#00ff00',
   //contrast: 70,
   minWidth: 10,
   minHeight: 10,
@@ -61,6 +61,36 @@ function resetOptions() {
   return new Promise(resolve => chrome.storage.local.set(DEFAULT_OPTIONS, resolve));
 }
 
+let contexts = 0;
+
+function savePng() {
+  messageCurrentTab({ message: messages.saveImage });
+}
+
+const CONTEXT_ID = 'savepng';
+function createContext() {
+  if (!contexts) {
+    chrome.contextMenus.create({
+      id: CONTEXT_ID,
+      title: "Save PNG",
+      contexts: ['image'],
+      onclick: savePng
+    });
+  }
+  contexts++;
+}
+
+function removeContext() {
+  contexts--;
+  if (!contexts) {
+    chrome.contextMenus.remove(CONTEXT_ID);
+  }
+}
+
+addEventListener('unload', function() {
+  chrome.contextMenus.remove(CONTEXT_ID);
+}, true);
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.message) {
     case messages.beforeSend:
@@ -77,6 +107,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case messages.resetOptions:
       resetOptions(request.options);
       break;
+    case messages.createContext:
+      createContext(request.url);
+      break;
+    case messages.removeContext:
+      removeContext(request.url);
+      break;
   }
 });
-

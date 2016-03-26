@@ -4,27 +4,23 @@ import memoize from 'lodash/memoize';
 import isEqual from 'lodash/isEqual'
 
 import messages from '../common/messages';
-import {waitForImage, loadImage} from '../common/image-utils';
+import {waitForImage, loadImage, setSrc} from '../common/image-utils';
 import WorkerQueue from '../client/worker-queue';
 import {getImageData, revokeObjectUrls as imageDataRevoke} from '../client/image-data';
 import sources from '../client/dom-sources'
 
-const allObjectUrls = [];
-
-function domToBlob(domString, {naturalWidth: width, naturalHeight: height}) {
-  const data = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
+function domToDataUrl(domString, {naturalWidth: width, naturalHeight: height}) {
+  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
               <foreignObject width="100%" height="100%">
               <div xmlns="http://www.w3.org/1999/xhtml">
               ${domString}
               </div>
               </foreignObject>
-              </svg>`;
-
-  return new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
+              </svg>`.replace(/\r?\n|\r/g, '');
 }
 
 function processDomString(domString, options) {
-  return domToBlob(getContainerString(domString, options), options)
+  return domToDataUrl(getContainerString(domString, options), options)
 }
 
 
@@ -148,15 +144,10 @@ function validateProcessingNeeded(img, options) {
   return isAsciiized(img, options) ? Promise.reject() : Promise.resolve(img);
 }
 
-function setImageObjectUrl(img, blob) {
+function setImageObjectUrl(img, url) {
   const source = sources.get(img);
-  const objectUrl = URL.createObjectURL(blob, { autoRevoke: true });
-  allObjectUrls.push(objectUrl);
-  if (source.objectUrl) {
-    URL.revokeObjectURL(source.objectUrl);
-  }
-  source.objectUrl = objectUrl;
-  return objectUrl;
+  source.objectUrl = url;
+  return url;
 }
 
 function getAsciiizedObjectUrl(img, options) {
@@ -185,12 +176,12 @@ function loadAsciiizedImage(img, objectUrl) {
   if (document.querySelector('body[style]') && document.getElementsByTagName('img').length === 1) {
     window.open(objectUrl);
   } else {
-    return loadImage(img, objectUrl);
+    setSrc(img, objectUrl)
   }
 }
 
 function processImg(img, options) {
-  return validateProcessingNeeded(img)
+  return validateProcessingNeeded(img, options)
     .then(loadImage)
     .then(createOptions.bind(null, options))
     .then(options => getAsciiizedObjectUrl(img, options))
@@ -207,9 +198,6 @@ function resetImg(img) {
 }
 
 function revokeObjectUrls() {
-  if (allObjectUrls) {
-    allObjectUrls.forEach(URL.revokeObjectURL.bind(URL));
-  }
   imageDataRevoke();
 }
 

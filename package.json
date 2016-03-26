@@ -24,6 +24,7 @@
     "mutation-summary": "0.0.0",
     "quantize": "^1.0.1",
     "randomstring": "^1.1.3",
+    "rasterizehtml": "^1.2.2",
     "simple-color-picker": "0.0.9"
   },
   "devDependencies": {
